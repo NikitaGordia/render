@@ -2,7 +2,7 @@
 #include "utils/render/Render.h"
 
 int main() {
-    Render r;
+    Render r("/Users/nikitagordia/Documents/Workspace/CLionProjects/render/src/imgs/result.bmp");
 
-    r.render("/Users/nikitagordia/Documents/Workspace/CLionProjects/render/src/objects/cube.obj", "/Users/nikitagordia/Documents/Workspace/CLionProjects/render/src/imgs/result.bmp");
+    r.render("/Users/nikitagordia/Documents/Workspace/CLionProjects/render/src/objects/cube.obj");
 }
