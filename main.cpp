@@ -1,6 +1,8 @@
 #include <iostream>
+#include "utils/render/Render.h"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
+    Render r;
+
+    r.render("/Users/nikitagordia/Documents/Workspace/CLionProjects/render/src/objects/cube.obj", "/Users/nikitagordia/Documents/Workspace/CLionProjects/render/src/imgs/result.bmp");
 }
