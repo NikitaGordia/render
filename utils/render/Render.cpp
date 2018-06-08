@@ -1,6 +1,6 @@
 #include "Render.h"
 
-Camera::Camera(int _width, int _height, Ray _pos, Vector _rotV, float _FOP): width(_width), height(_height), pos(_pos), rotV(_rotV), FOP(_FOP) {}
+Camera::Camera(int _width, int _height, Ray _pos, Vector _light, Vector _rotV, float _FOP): width(_width), height(_height), pos(_pos), light(_light), rotV(_rotV), FOP(_FOP) {}
 
 Ray Camera::pixel_ray(int x, int y) {
     Vector dV = rotV.normalize().multi((x - width / 2) * FOP);
@@ -21,6 +21,7 @@ void Render::parse_obj(const char *file_name) {
     vector< pair<int, pair<int, int> > > f;
     vector<string> pts, coords;
 
+    cout<<"Parsing : "<<endl;
     if (file.is_open()) {
         while (file.good()) {
             getline(file, str);
@@ -44,7 +45,8 @@ void Render::parse_obj(const char *file_name) {
             }
         }
     } else {
-        cout<<"Error open : "<<file_name<<" !"<<endl;
+        cout<<"    Error open : "<<file_name<<" !"<<endl;
+        return;
     }
 
     pn = v.size();
@@ -54,6 +56,8 @@ void Render::parse_obj(const char *file_name) {
     fn = f.size();
     facets = new Facet*[fn];
     for (int i = 0; i < fn; i++) facets[i] = new Facet(points[f[i].first], points[f[i].second.first], points[f[i].second.second]);
+
+    cout<<"    Vertex : "<<pn<<endl<<"    Facets : "<<fn<<endl<<endl;
 }
 
 template<class T> vector<T> Render::strsplit(string input, char delimiter) {
@@ -71,7 +75,7 @@ template<class T> vector<T> Render::strsplit(string input, char delimiter) {
     return res;
 }
 
-Render::Render(const char *result): cam(512, 512, Ray(Vector(12, 12, 12), Vector(-2, -2, -2)), Vector(-2, -2, 2), 0.002f) {
+Render::Render(const char *result): cam(512, 512, Ray(Vector(80, 48, 32), Vector(-8.2, -4.92, -3.25)), Vector(-1, -2, -3), Vector(0, 0, 1), 0.0008) {
     tm = clock();
     out = new ofstream(result, ios::binary);
 
@@ -94,9 +98,9 @@ Render::Render(const char *result): cam(512, 512, Ray(Vector(12, 12, 12), Vector
 }
 
 void Render::draw(int x, int y, float r, float g, float b) {
-    *(data + (x * cam.width + y) * 3 + 2) = (char)(floor(r));
-    *(data + (x * cam.width + y) * 3 + 1) = (char)(floor(g));
-    *(data + (x * cam.width + y) * 3 + 0) = (char)(floor(b));
+    *(data + (x * cam.width + y) * 3 + 2) = (char)(r);
+    *(data + (x * cam.width + y) * 3 + 1) = (char)(g);
+    *(data + (x * cam.width + y) * 3 + 0) = (char)(b);
 }
 
 void Render::write() {
@@ -106,21 +110,46 @@ void Render::write() {
     cout<<"Rendering over in : "<<((end - tm) / 1000000)<<"s "<<((end - tm) % 1000000) / 1000<<"ms"<<endl;
 }
 
+InterRes Render::ray_trace(Ray r) {
+    float mnDist = INFINITY;
+    float dist;
+    InterRes ans, res;
+
+    for (int k = 0; k < fn; k++) {
+        res = facets[k]->intersect(r);
+
+        dist = cam.pos.origin.dist(res.p);
+        if (res && mnDist > dist) {
+            mnDist = dist;
+            ans = res;
+        }
+    }
+    ans.i = (mnDist != INFINITY);
+    return ans;
+}
+
 void Render::render(const char *file_name) {
 
     parse_obj(file_name);
 
+    float shade;
+    float dist, mnDist;
+    Vector pt(-1, -1, -1);
+    InterRes hit, light;
+    Ray r;
+
     for (int i = 0; i < cam.height; i++)
         for (int j = 0; j < cam.width; j++) {
-            draw(i, j, 0, 0, 0);
-            Ray r = cam.pixel_ray(i, j);
-            bool hit = false;
-            for (int k = 0; k < fn; k++)
-                if (facets[k]->intersect(r)) {
-                    hit = true;
-                    break;
-                }
-            if (hit) draw(i, j, 255, 0, 0); else draw(i, j, 0, 0, 255);
+
+            r = cam.pixel_ray(i, j);
+            hit = ray_trace(r);
+            if (hit) {
+                r = Ray(cam.light, hit.p.substract(cam.light));
+                light = ray_trace(r);
+                if (abs(light.p.dist(r.origin) - hit.p.dist(r.origin)) < EPS) {
+                    draw(i, j, 255 * (1 - sinf(r.direction.angle(hit.normal))), 0, 0);
+                } else draw(i, j, 0, 0, 0);
+            } else draw(i, j, 255, 255, 255);
         }
 
     write();

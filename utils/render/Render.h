@@ -5,14 +5,14 @@
 
 struct Camera {
 
-    Vector rotV;
+    Vector rotV, light;
     Ray pos;
 
     int width, height;
 
     float FOP;
 
-    Camera(int width, int _height, Ray _pos, Vector _rotV, float _FOP);
+    Camera(int width, int _height, Ray _pos, Vector light, Vector _rotV, float _FOP);
 
     Ray pixel_ray(int x, int y);
 
@@ -40,6 +40,8 @@ private:
     template <class T> vector<T> strsplit(string input, char delimiter);
 
     void write();
+
+    InterRes ray_trace(Ray r);
 
     void draw(int x, int y, float r, float g, float b);
 

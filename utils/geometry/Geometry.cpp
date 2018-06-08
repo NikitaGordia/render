@@ -5,10 +5,13 @@ using namespace std;
 
 template <typename T> inline T sqr(T t) { return t * t; }
 
+const float EPS = 0.0001;
+
 struct Vector {
 
     float x, y, z;
 
+    Vector() {}
     Vector(float _x, float _y, float _z): x(_x), y(_y), z(_z) {}
 
     Vector substract(Vector &v) {
@@ -43,6 +46,10 @@ struct Vector {
         return Vector(x /= l, y /= l, z /= l);
     }
 
+    float angle(Vector &v) {
+        return acosf(dot(v) / (size() * v.size()));
+    }
+
     string dbg() {
         string res = " ( ";
         res += to_string(x); res += "; ";
@@ -56,6 +63,7 @@ struct Ray {
 
     Vector origin, direction;
 
+    Ray() {}
     Ray(Vector _origin, Vector _direction): origin(_origin), direction(_direction) {}
 
     string dbg() {
@@ -71,6 +79,7 @@ struct InterRes {
 
     operator bool() { return i; }
 
+    InterRes() {}
     InterRes(Vector _p, Vector _normal): p(_p), normal(_normal) {}
 };
 
@@ -97,44 +106,28 @@ struct Facet {
     }
 
     InterRes intersect(Ray &r) {
-        const float E = 1e-5;
+
+        Vector normal((v[1]->y - v[0]->y) * (v[2]->z - v[0]->z) - (v[2]->y - v[0]->y) * (v[1]->z - v[0]->z),
+                      (v[2]->x - v[0]->x) * (v[1]->z - v[0]->z) - (v[1]->x - v[0]->x) * (v[2]->z - v[0]->z),
+                      (v[1]->x - v[0]->x) * (v[2]->y - v[0]->y) - (v[1]->y - v[0]->y) * (v[2]->x - v[0]->x));
+
         float
-                x0 = v[0]->x,
-                y0 = v[0]->y,
-                z0 = v[0]->z,
-                x1 = v[1]->x,
-                y1 = v[1]->y,
-                z1 = v[1]->z,
-                x2 = v[2]->x,
-                y2 = v[2]->y,
-                z2 = v[2]->z,
-
-                A = (y1 - y0) * (z2 - z0) - (y2 - y0) * (z1 - z0),
-                B = (x2 - x0) * (z1 - z0) - (x1 - x0) * (z2 - z0),
-                C = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0),
-                D =
-                x0 * ((y2 - y0) * (z1 - z0) - (y1 - y0) * (z2 - z0)) +
-                y0 * ((x1 - x0) * (z2 - z0) - (x2 - x0) * (z1 - z0)) +
-                z0 * ((y1 - y0) * (x2 - x0) - (x1 - x0) * (y2 - y0)),
                 t =
-                -(A * r.origin.x + B * r.origin.y + C * r.origin.z + D) /
-                (A * r.direction.x + B * r.direction.y + C * r.direction.z),
+                -(normal.x * r.origin.x + normal.y * r.origin.y + normal.z * r.origin.z + v[0]->x * ((v[2]->y - v[0]->y) * (v[1]->z - v[0]->z) - (v[1]->y - v[0]->y) * (v[2]->z - v[0]->z)) +
+                                                                     v[0]->y * ((v[1]->x - v[0]->x) * (v[2]->z - v[0]->z) - (v[2]->x - v[0]->x) * (v[1]->z - v[0]->z)) +
+                                                                     v[0]->z * ((v[1]->y - v[0]->y) * (v[2]->x - v[0]->x) - (v[1]->x - v[0]->x) * (v[2]->y - v[0]->y))) /
+                (normal.x * r.direction.x + normal.y * r.direction.y + normal.z * r.direction.z);
 
-                x = t * r.direction.x + r.origin.x,
-                y = t * r.direction.y + r.origin.y,
-                z = t * r.direction.z + r.origin.z;
-
-        Vector normal(A, B, C);
         normal = normal.normalize();
 
-        Vector res(x, y, z);
+        Vector res(t * r.direction.x + r.origin.x, t * r.direction.y + r.origin.y, t * r.direction.z + r.origin.z);
         Vector edge1 = v[1]->substract(*v[0]),
                 edge2 = v[2]->substract(*v[0]),
                 h = r.direction.cross(edge2);
-        float a = edge1.dot(h);
-        if (a > -E && a < E)
+        t = edge1.dot(h);
+        if (t > -EPS && t < EPS)
             return {res, normal};
-        float f = 1 / a;
+        float f = 1 / t;
         Vector s = r.origin.substract(*v[0]);
         float u = f * s.dot(h);
         if (u < 0.0 || u > 1.0)
@@ -146,7 +139,7 @@ struct Facet {
 
         if (v < 0.0 || u + v > 1.0) return ans;
         float tt = f * edge2.dot(q);
-        ans.i = (tt > E);
+        ans.i = (tt > EPS);
         return ans;
     }
 };
